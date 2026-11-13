@@ -6,230 +6,356 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>ふたりのお財布</title>
 <style>
-  * { box-sizing: border-box; }
-
-  body {
-    margin: 0;
-    background: #fafafa;
-    color: #222;
-    font-family: -apple-system, BlinkMacSystemFont,
-                 "Helvetica Neue", sans-serif;
-  }
-
-  main {
-    max-width: 480px;
-    margin: auto;
-    padding: 32px 20px;
-  }
-
-  h1 {
-    font-size: 23px;
-    font-weight: 650;
-    margin: 0 0 32px;
-  }
-
-  h2 {
-    font-size: 15px;
-    font-weight: 600;
-    margin: 32px 0 16px;
-  }
-
-  .balance {
-    background: white;
-    border: 1px solid #eee;
-    border-radius: 16px;
-    padding: 24px;
-  }
-
-  .label {
-    color: #888;
-    font-size: 13px;
-  }
-
-  .amount {
-    font-size: 36px;
-    font-weight: 650;
-    margin: 8px 0;
-    letter-spacing: -1px;
-  }
-
-  .details {
-    color: #888;
-    font-size: 13px;
-  }
-
-  input {
-    width: 100%;
-    padding: 15px;
-    border: 1px solid #e5e5e5;
-    border-radius: 10px;
-    background: white;
-    font-size: 16px;
-    margin-bottom: 10px;
-  }
-
-  button {
-    width: 100%;
-    padding: 15px;
-    border: none;
-    border-radius: 10px;
-    background: #222;
-    color: white;
-    font-size: 15px;
-    font-weight: 600;
-  }
-
-  .history {
-    background: white;
-    border: 1px solid #eee;
-    border-radius: 14px;
-    overflow: hidden;
-  }
-
-  .item {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 18px;
-    border-bottom: 1px solid #f0f0f0;
-    font-size: 14px;
-  }
-
-  .item:last-child { border-bottom: none; }
-
-  .date {
-    color: #999;
-    font-size: 12px;
-    margin-top: 5px;
-  }
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  background: #fafafa;
+  color: #222;
+  font-family: -apple-system, BlinkMacSystemFont,
+    "Helvetica Neue", sans-serif;
+}
+main {
+  max-width: 480px;
+  margin: auto;
+  padding: 28px 20px 60px;
+}
+h1 { font-size: 23px; margin: 0 0 28px; }
+h2 { font-size: 15px; margin: 30px 0 14px; }
+.card, .history {
+  background: white;
+  border: 1px solid #eee;
+  border-radius: 16px;
+  padding: 20px;
+}
+.label { color: #888; font-size: 13px; }
+.amount {
+  font-size: 34px;
+  font-weight: 650;
+  margin: 8px 0;
+}
+.details { color: #888; font-size: 13px; }
+input, select {
+  width: 100%;
+  padding: 14px;
+  border: 1px solid #e5e5e5;
+  border-radius: 10px;
+  background: white;
+  font-size: 16px;
+  margin-bottom: 10px;
+}
+button {
+  border: none;
+  border-radius: 10px;
+  padding: 14px;
+  background: #222;
+  color: white;
+  font-size: 14px;
+  font-weight: 600;
+}
+button:disabled { opacity: .5; }
+.full { width: 100%; }
+.secondary {
+  background: #f0f0f0;
+  color: #222;
+}
+.row {
+  display: flex;
+  gap: 10px;
+}
+.row > * { flex: 1; min-width: 0; }
+.item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  padding: 15px 0;
+  border-bottom: 1px solid #eee;
+}
+.item:last-child { border-bottom: none; }
+.item-name { font-size: 14px; font-weight: 600; }
+.date { color: #999; font-size: 12px; margin-top: 5px; }
+.item-price { font-size: 14px; white-space: nowrap; }
+.small { font-size: 12px; padding: 8px 10px; }
+.hidden { display: none; }
 </style>
 </head>
 <body>
 <main>
   <h1>ふたりのお財布</h1>
 
-  <div class="balance">
+  <input type="month" id="month">
+
+  <div class="card">
     <div class="label">今月の残り予算</div>
-    <div class="amount" id="balance">40,000円</div>
-    <div class="details" id="summary">
-      予算 40,000円
-    </div>
+    <div class="amount" id="balance">—</div>
+    <div class="details" id="summary">読み込み中...</div>
+    <button class="secondary small" id="budgetEdit"
+      style="margin-top:14px">予算を変更</button>
   </div>
 
-  <h2>支出を追加</h2>
+  <section id="budgetPanel" class="hidden">
+    <h2>月の予算を変更</h2>
+    <input id="budgetAmount" type="number"
+      min="0" max="10000000" placeholder="予算">
+    <button class="full" id="budgetSave">保存する</button>
+  </section>
+
+  <h2 id="formTitle">支出・入金を追加</h2>
   <form id="form">
-    <input id="name" placeholder="お店・用途" required>
-    <input id="price" type="number"
-           min="1" placeholder="金額" required>
-    <button type="submit">追加する</button>
+    <select id="type">
+      <option value="expense">支出</option>
+      <option value="income">入金</option>
+    </select>
+    <input id="name" placeholder="お店・用途" required
+      maxlength="100">
+    <input id="price" type="number" min="1"
+      max="10000000" placeholder="金額" required>
+    <input id="spent_on" type="date" required>
+    <div class="row">
+      <button type="submit" id="saveButton">登録する</button>
+      <button type="button" class="secondary hidden"
+        id="cancelEdit">キャンセル</button>
+    </div>
   </form>
 
   <h2>利用履歴</h2>
-  <div class="history" id="history"></div>
+  <div class="history" id="history">読み込み中...</div>
 </main>
 
-
 <script>
-const budget = 40000;
 const yen = n => n.toLocaleString("ja-JP") + "円";
+const $ = id => document.getElementById(id);
+
+const today = () => {
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Tokyo",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit"
+  }).formatToParts(new Date());
+
+  const get = type =>
+    parts.find(p => p.type === type).value;
+
+  return `${get("year")}-${get("month")}-${get("day")}`;
+};
 
 let history = [];
+let budget = 40000;
+let editingId = null;
 
-async function loadHistory() {
-  const response = await fetch("/api/transactions", {
-    cache: "no-store"
+$("month").value = today().slice(0, 7);
+$("spent_on").value = today();
+
+async function request(url, options) {
+  const response = await fetch(url, {
+    cache: "no-store",
+    ...options
   });
 
-  if (!response.ok) throw new Error("取得失敗");
+  if (!response.ok) {
+    throw new Error("通信に失敗しました");
+  }
 
-  history = await response.json();
-  render();
+  return response.json();
+}
+
+async function load() {
+  const month = $("month").value;
+
+  try {
+    const [transactions, budgetData] =
+      await Promise.all([
+        request("/api/transactions"),
+        request("/api/budget?month=" +
+          encodeURIComponent(month))
+      ]);
+
+    history = transactions;
+    budget = budgetData.amount;
+    render();
+  } catch (e) {
+    alert("データを取得できませんでした");
+  }
 }
 
 function render() {
-  const month = new Intl.DateTimeFormat("sv-SE", {
-    timeZone: "Asia/Tokyo",
-    year: "numeric",
-    month: "2-digit"
-  }).format(new Date());
-
+  const month = $("month").value;
   const monthly = history.filter(x =>
     x.spent_on.startsWith(month)
   );
 
-  const spent = monthly.reduce(
-    (sum, x) => sum + x.price, 0
-  );
+  const spent = monthly
+    .filter(x => x.type === "expense")
+    .reduce((s, x) => s + x.price, 0);
 
-  document.getElementById("balance").textContent =
-    yen(budget - spent);
+  const income = monthly
+    .filter(x => x.type === "income")
+    .reduce((s, x) => s + x.price, 0);
 
-  document.getElementById("summary").textContent =
-    `予算 ${yen(budget)} ・ 支出 ${yen(spent)}`;
+  $("balance").textContent = yen(budget - spent);
+  $("summary").textContent =
+    `予算 ${yen(budget)} ・ 支出 ${yen(spent)} ・ 入金 ${yen(income)}`;
 
-  const list = document.getElementById("history");
+  const list = $("history");
   list.replaceChildren();
 
-  history.forEach(x => {
-    const row = document.createElement("div");
-    row.className = "item";
+  if (!monthly.length) {
+    list.textContent = "この月の履歴はありません";
+    return;
+  }
+
+  monthly.forEach(x => {
+    const item = document.createElement("div");
+    item.className = "item";
 
     const left = document.createElement("div");
-    left.textContent = x.name;
+    const name = document.createElement("div");
+    name.className = "item-name";
+    name.textContent = x.name;
 
     const date = document.createElement("div");
     date.className = "date";
     date.textContent = x.spent_on;
-    left.append(date);
 
-    const right = document.createElement("strong");
-    right.textContent = "−" + yen(x.price);
+    left.append(name, date);
 
-    row.append(left, right);
-    list.append(row);
+    const right = document.createElement("div");
+    const price = document.createElement("div");
+    price.className = "item-price";
+    price.textContent =
+      (x.type === "income" ? "＋" : "−") +
+      yen(x.price);
+
+    const edit = document.createElement("button");
+    edit.className = "secondary small";
+    edit.textContent = "編集";
+    edit.onclick = () => startEdit(x);
+
+    const del = document.createElement("button");
+    del.className = "secondary small";
+    del.textContent = "削除";
+    del.onclick = () => removeItem(x);
+
+    right.append(price, edit, del);
+    item.append(left, right);
+    list.append(item);
   });
 }
 
-document.getElementById("form").onsubmit = async e => {
+function startEdit(x) {
+  editingId = x.id;
+  $("type").value = x.type;
+  $("name").value = x.name;
+  $("price").value = x.price;
+  $("spent_on").value = x.spent_on;
+  $("formTitle").textContent = "履歴を編集";
+  $("saveButton").textContent = "変更を保存";
+  $("cancelEdit").classList.remove("hidden");
+  $("form").scrollIntoView({ behavior: "smooth" });
+}
+
+function resetForm() {
+  editingId = null;
+  $("form").reset();
+  $("spent_on").value = today();
+  $("formTitle").textContent = "支出・入金を追加";
+  $("saveButton").textContent = "登録する";
+  $("cancelEdit").classList.add("hidden");
+}
+
+$("cancelEdit").onclick = resetForm;
+
+$("form").onsubmit = async e => {
   e.preventDefault();
 
-  const form = e.target;
-  const button = form.querySelector("button");
-  const name = document.getElementById("name").value.trim();
-  const price = Number(document.getElementById("price").value);
+  const payload = {
+    name: $("name").value.trim(),
+    price: Number($("price").value),
+    type: $("type").value,
+    spent_on: $("spent_on").value
+  };
 
-  if (!name || !Number.isSafeInteger(price) || price <= 0)
-    return;
+  const method = editingId ? "PATCH" : "POST";
 
-  button.disabled = true;
-  button.textContent = "保存中...";
+  if (editingId) payload.id = editingId;
+
+  $("saveButton").disabled = true;
 
   try {
-    const response = await fetch("/api/transactions", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify({ name, price })
+    await request("/api/transactions", {
+      method,
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload)
     });
 
-    if (!response.ok) throw new Error("保存失敗");
-
-    form.reset();
-    await loadHistory();
-  } catch {
-    alert("保存できませんでした。もう一度試してね。");
+    resetForm();
+    await load();
+  } catch (e) {
+    alert("保存できませんでした");
   } finally {
-    button.disabled = false;
-    button.textContent = "追加する";
+    $("saveButton").disabled = false;
   }
 };
 
-loadHistory().catch(() => {
-  document.getElementById("history").textContent =
-    "履歴を取得できませんでした";
-});
-</script>
+async function removeItem(x) {
+  if (!confirm(`「${x.name}」を削除しますか？`)) return;
 
+  try {
+    await request("/api/transactions", {
+      method: "DELETE",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id: x.id })
+    });
+
+    await load();
+  } catch (e) {
+    alert("削除できませんでした");
+  }
+}
+
+$("budgetEdit").onclick = () => {
+  $("budgetAmount").value = budget;
+  $("budgetPanel").classList.toggle("hidden");
+};
+
+$("budgetSave").onclick = async () => {
+  const amount = Number($("budgetAmount").value);
+
+  if (!Number.isSafeInteger(amount) ||
+      amount < 0 || amount > 10000000) {
+    alert("正しい予算を入力してください");
+    return;
+  }
+
+  $("budgetSave").disabled = true;
+
+  try {
+    await request("/api/budget", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        month: $("month").value,
+        amount
+      })
+    });
+
+    $("budgetPanel").classList.add("hidden");
+    await load();
+  } catch (e) {
+    alert("予算を保存できませんでした");
+  } finally {
+    $("budgetSave").disabled = false;
+  }
+};
+
+$("month").onchange = () => {
+  resetForm();
+  $("budgetPanel").classList.add("hidden");
+  load();
+};
+
+load();
+</script>
 </body>
 </html>
