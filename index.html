@@ -1,0 +1,196 @@
+
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ふたりのお財布</title>
+<style>
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    background: #fafafa;
+    color: #222;
+    font-family: -apple-system, BlinkMacSystemFont,
+                 "Helvetica Neue", sans-serif;
+  }
+
+  main {
+    max-width: 480px;
+    margin: auto;
+    padding: 32px 20px;
+  }
+
+  h1 {
+    font-size: 23px;
+    font-weight: 650;
+    margin: 0 0 32px;
+  }
+
+  h2 {
+    font-size: 15px;
+    font-weight: 600;
+    margin: 32px 0 16px;
+  }
+
+  .balance {
+    background: white;
+    border: 1px solid #eee;
+    border-radius: 16px;
+    padding: 24px;
+  }
+
+  .label {
+    color: #888;
+    font-size: 13px;
+  }
+
+  .amount {
+    font-size: 36px;
+    font-weight: 650;
+    margin: 8px 0;
+    letter-spacing: -1px;
+  }
+
+  .details {
+    color: #888;
+    font-size: 13px;
+  }
+
+  input {
+    width: 100%;
+    padding: 15px;
+    border: 1px solid #e5e5e5;
+    border-radius: 10px;
+    background: white;
+    font-size: 16px;
+    margin-bottom: 10px;
+  }
+
+  button {
+    width: 100%;
+    padding: 15px;
+    border: none;
+    border-radius: 10px;
+    background: #222;
+    color: white;
+    font-size: 15px;
+    font-weight: 600;
+  }
+
+  .history {
+    background: white;
+    border: 1px solid #eee;
+    border-radius: 14px;
+    overflow: hidden;
+  }
+
+  .item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 18px;
+    border-bottom: 1px solid #f0f0f0;
+    font-size: 14px;
+  }
+
+  .item:last-child { border-bottom: none; }
+
+  .date {
+    color: #999;
+    font-size: 12px;
+    margin-top: 5px;
+  }
+</style>
+</head>
+<body>
+<main>
+  <h1>ふたりのお財布</h1>
+
+  <div class="balance">
+    <div class="label">今月の残り予算</div>
+    <div class="amount" id="balance">40,000円</div>
+    <div class="details" id="summary">
+      予算 40,000円
+    </div>
+  </div>
+
+  <h2>支出を追加</h2>
+  <form id="form">
+    <input id="name" placeholder="お店・用途" required>
+    <input id="price" type="number"
+           min="1" placeholder="金額" required>
+    <button type="submit">追加する</button>
+  </form>
+
+  <h2>利用履歴</h2>
+  <div class="history" id="history"></div>
+</main>
+
+<script>
+const budget = 40000;
+const key = "wallet-history";
+const history = JSON.parse(
+  localStorage.getItem(key) || "[]"
+);
+
+const yen = n => n.toLocaleString("ja-JP") + "円";
+
+function render() {
+  const month = new Date().toISOString().slice(0, 7);
+  const monthly = history.filter(x =>
+    x.date.startsWith(month)
+  );
+  const spent = monthly.reduce((s, x) => s + x.price, 0);
+
+  document.getElementById("balance").textContent =
+    yen(budget - spent);
+  document.getElementById("summary").textContent =
+    `予算 ${yen(budget)} ・ 支出 ${yen(spent)}`;
+
+  const list = document.getElementById("history");
+  list.replaceChildren();
+
+  [...history].reverse().forEach(x => {
+    const row = document.createElement("div");
+    row.className = "item";
+
+    const left = document.createElement("div");
+    left.textContent = x.name;
+
+    const date = document.createElement("div");
+    date.className = "date";
+    date.textContent = x.date;
+    left.append(date);
+
+    const right = document.createElement("strong");
+    right.textContent = "−" + yen(x.price);
+
+    row.append(left, right);
+    list.append(row);
+  });
+}
+
+document.getElementById("form").onsubmit = e => {
+  e.preventDefault();
+
+  const name = document.getElementById("name").value.trim();
+  const price = Number(document.getElementById("price").value);
+
+  if (!name || !Number.isSafeInteger(price) || price <= 0)
+    return;
+
+  const date = new Date().toLocaleDateString("sv-SE");
+
+  history.push({ name, price, date });
+  localStorage.setItem(key, JSON.stringify(history));
+
+  e.target.reset();
+  render();
+};
+
+render();
+</script>
+</body>
+</html>
