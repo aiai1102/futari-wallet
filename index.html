@@ -119,6 +119,23 @@ input::-webkit-date-and-time-value {
     <button class="full" id="budgetSave">保存する</button>
   </section>
 
+<section>
+  <button class="secondary small" id="defaultBudgetEdit"
+    type="button">デフォルト予算を変更</button>
+
+  <div id="defaultBudgetPanel" class="hidden"
+    style="margin-top:14px">
+    <div class="label" style="margin-bottom:8px">
+      新しい月に自動適用する予算
+    </div>
+    <input id="defaultBudgetAmount" type="number"
+      min="0" max="10000000"
+      placeholder="デフォルト予算">
+    <button class="full" id="defaultBudgetSave"
+      type="button">デフォルト予算を保存</button>
+  </div>
+</section>
+
   <h2 id="formTitle">支出・入金を追加</h2>
   <form id="form">
     <select id="type">
@@ -375,6 +392,56 @@ $("month").onchange = () => {
 };
 
 load();
+
+$("defaultBudgetEdit").onclick = async () => {
+  try {
+    const data = await request("/api/budget?mode=default");
+
+    $("defaultBudgetAmount").value = data.amount;
+    $("defaultBudgetPanel").classList.toggle("hidden");
+  } catch {
+    alert("デフォルト予算を取得できませんでした");
+  }
+};
+
+$("defaultBudgetSave").onclick = async () => {
+  const input = $("defaultBudgetAmount");
+
+  if (input.value.trim() === "") {
+    alert("予算を入力してください");
+    return;
+  }
+
+  const amount = Number(input.value);
+
+  if (!Number.isSafeInteger(amount) ||
+      amount < 0 || amount > 10000000) {
+    alert("正しい予算を入力してください");
+    return;
+  }
+
+  $("defaultBudgetSave").disabled = true;
+
+  try {
+    await request("/api/budget", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        mode: "default",
+        amount
+      })
+    });
+
+    $("defaultBudgetPanel").classList.add("hidden");
+    await load();
+    alert("デフォルト予算を変更しました");
+  } catch {
+    alert("保存できませんでした");
+  } finally {
+    $("defaultBudgetSave").disabled = false;
+  }
+};
+
 </script>
 </body>
 </html>
