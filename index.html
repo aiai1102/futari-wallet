@@ -128,31 +128,49 @@
   <div class="history" id="history"></div>
 </main>
 
+
 <script>
 const budget = 40000;
-const key = "wallet-history";
-const history = JSON.parse(
-  localStorage.getItem(key) || "[]"
-);
-
 const yen = n => n.toLocaleString("ja-JP") + "円";
 
+let history = [];
+
+async function loadHistory() {
+  const response = await fetch("/api/transactions", {
+    cache: "no-store"
+  });
+
+  if (!response.ok) throw new Error("取得失敗");
+
+  history = await response.json();
+  render();
+}
+
 function render() {
-  const month = new Date().toISOString().slice(0, 7);
+  const month = new Intl.DateTimeFormat("sv-SE", {
+    timeZone: "Asia/Tokyo",
+    year: "numeric",
+    month: "2-digit"
+  }).format(new Date());
+
   const monthly = history.filter(x =>
-    x.date.startsWith(month)
+    x.spent_on.startsWith(month)
   );
-  const spent = monthly.reduce((s, x) => s + x.price, 0);
+
+  const spent = monthly.reduce(
+    (sum, x) => sum + x.price, 0
+  );
 
   document.getElementById("balance").textContent =
     yen(budget - spent);
+
   document.getElementById("summary").textContent =
     `予算 ${yen(budget)} ・ 支出 ${yen(spent)}`;
 
   const list = document.getElementById("history");
   list.replaceChildren();
 
-  [...history].reverse().forEach(x => {
+  history.forEach(x => {
     const row = document.createElement("div");
     row.className = "item";
 
@@ -161,7 +179,7 @@ function render() {
 
     const date = document.createElement("div");
     date.className = "date";
-    date.textContent = x.date;
+    date.textContent = x.spent_on;
     left.append(date);
 
     const right = document.createElement("strong");
@@ -172,25 +190,46 @@ function render() {
   });
 }
 
-document.getElementById("form").onsubmit = e => {
+document.getElementById("form").onsubmit = async e => {
   e.preventDefault();
 
+  const form = e.target;
+  const button = form.querySelector("button");
   const name = document.getElementById("name").value.trim();
   const price = Number(document.getElementById("price").value);
 
   if (!name || !Number.isSafeInteger(price) || price <= 0)
     return;
 
-  const date = new Date().toLocaleDateString("sv-SE");
+  button.disabled = true;
+  button.textContent = "保存中...";
 
-  history.push({ name, price, date });
-  localStorage.setItem(key, JSON.stringify(history));
+  try {
+    const response = await fetch("/api/transactions", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({ name, price })
+    });
 
-  e.target.reset();
-  render();
+    if (!response.ok) throw new Error("保存失敗");
+
+    form.reset();
+    await loadHistory();
+  } catch {
+    alert("保存できませんでした。もう一度試してね。");
+  } finally {
+    button.disabled = false;
+    button.textContent = "追加する";
+  }
 };
 
-render();
+loadHistory().catch(() => {
+  document.getElementById("history").textContent =
+    "履歴を取得できませんでした";
+});
 </script>
+
 </body>
 </html>
