@@ -17,9 +17,27 @@ export default async function handler(req, res) {
     "Content-Type": "application/json"
   };
 
-  const endpoint = `${url}/rest/v1/wallet_budgets`;
+  const budgets = `${url}/rest/v1/wallet_budgets`;
+  const settings = `${url}/rest/v1/wallet_settings`;
 
   try {
+    // デフォルト予算の取得
+    if (req.method === "GET" && req.query.mode === "default") {
+      const response = await fetch(
+        `${settings}?id=eq.1&select=default_budget`,
+        { headers, cache: "no-store" }
+      );
+
+      if (!response.ok) throw new Error("Settings read failed");
+
+      const data = await response.json();
+
+      return res.status(200).json({
+        amount: data[0]?.default_budget ?? 40000
+      });
+    }
+
+    // 月別予算の取得
     if (req.method === "GET") {
       const month = req.query.month;
 
@@ -27,45 +45,80 @@ export default async function handler(req, res) {
         return res.status(400).json({ error: "Invalid month" });
       }
 
-      const response = await fetch(
-        `${endpoint}?month=eq.${month}&select=amount`,
-        { headers, cache: "no-store" }
-      );
+      const [budgetResponse, settingsResponse] =
+        await Promise.all([
+          fetch(
+            `${budgets}?month=eq.${month}&select=amount`,
+            { headers, cache: "no-store" }
+          ),
+          fetch(
+            `${settings}?id=eq.1&select=default_budget`,
+            { headers, cache: "no-store" }
+          )
+        ]);
 
-      if (!response.ok) throw new Error("Read failed");
+      if (!budgetResponse.ok || !settingsResponse.ok) {
+        throw new Error("Read failed");
+      }
 
-      const data = await response.json();
+      const monthly = await budgetResponse.json();
+      const defaults = await settingsResponse.json();
 
       return res.status(200).json({
-        amount: data.length ? data[0].amount : 40000
+        amount: monthly[0]?.amount ??
+          defaults[0]?.default_budget ?? 40000
       });
     }
 
-    const { month, amount } = req.body || {};
+    // デフォルト予算の変更
+    if (req.method === "PUT" && req.body?.mode === "default") {
+      const amount = req.body.amount;
 
-    if (
-      !validMonth(month) ||
-      !Number.isSafeInteger(amount) ||
-      amount < 0 ||
-      amount > 10000000
-    ) {
-      return res.status(400).json({ error: "Invalid input" });
+      if (!validAmount(amount)) {
+        return res.status(400).json({ error: "Invalid amount" });
+      }
+
+      const response = await fetch(settings, {
+        method: "POST",
+        headers: {
+          ...headers,
+          Prefer: "resolution=merge-duplicates,return=representation"
+        },
+        body: JSON.stringify({
+          id: 1,
+          default_budget: amount,
+          updated_at: new Date().toISOString()
+        })
+      });
+
+      if (!response.ok) throw new Error("Settings write failed");
+
+      return res.status(200).json({
+        amount
+      });
     }
 
-    const response = await fetch(endpoint, {
-      method: "POST",
-      headers: {
-        ...headers,
-        Prefer: "resolution=merge-duplicates,return=representation"
-      },
-      body: JSON.stringify({ month, amount })
-    });
+    // 月別予算の変更
+    if (req.method === "PUT") {
+      const { month, amount } = req.body || {};
 
-    if (!response.ok) throw new Error("Write failed");
+      if (!validMonth(month) || !validAmount(amount)) {
+        return res.status(400).json({ error: "Invalid input" });
+      }
 
-    const data = await response.json();
+      const response = await fetch(budgets, {
+        method: "POST",
+        headers: {
+          ...headers,
+          Prefer: "resolution=merge-duplicates,return=representation"
+        },
+        body: JSON.stringify({ month, amount })
+      });
 
-    return res.status(200).json(data[0]);
+      if (!response.ok) throw new Error("Budget write failed");
+
+      return res.status(200).json({ month, amount });
+    }
   } catch {
     return res.status(500).json({ error: "Database error" });
   }
@@ -74,4 +127,9 @@ export default async function handler(req, res) {
 function validMonth(value) {
   return typeof value === "string" &&
     /^\d{4}-(0[1-9]|1[0-2])$/.test(value);
+}
+
+function validAmount(value) {
+  return Number.isSafeInteger(value) &&
+    value >= 0 && value <= 10000000;
 }
